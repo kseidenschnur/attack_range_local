@@ -7,6 +7,7 @@ import ansible_runner
 import sys
 import os
 import yaml
+import subprocess
 from modules import splunk_sdk
 
 
@@ -136,6 +137,17 @@ class VagrantController():
             log.error(target + ' not found as vagrant box.')
             sys.exit(1)
 
+    def get_forwarded_ports(self,box):
+        cwd = os.getcwd()
+        string = subprocess.run(['vagrant', 'port' , box] , cwd=cwd + '/vagrant' , stdout=subprocess.PIPE)
+        pattern = '(\d+)\s\(guest\)\s\=\>\s(\d+)'
+        match = re.findall(pattern, str(string))
+        ports = ''
+        for m in match:
+            p = str(m).replace(', ',' => ').replace('(','').replace(')','').replace('\'','')
+            p = '\'' + p + '\' ' 
+            ports = ports + p
+        return ports
 
     def list_machines(self):
         print()
@@ -144,9 +156,9 @@ class VagrantController():
         response = v1.status()
         status = []
         for stat in response:
-            status.append([stat.name, stat.state, self.get_ip_address_from_machine(stat.name)])
+            status.append([stat.name, stat.state, self.get_ip_address_from_machine(stat.name),self.get_forwarded_ports(stat.name)])
 
-        print(tabulate(status, headers=['Name','Status','IP Address']))
+        print(tabulate(status, headers=['Name','Status','IP Address','Forwarded Ports (Guest => Host)']))
         print()
 
     def dump(self, dump_name):
